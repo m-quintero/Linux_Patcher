@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script Name: linux_patcher
-# Version: 2.1
+# Version: 2.1.1
 # Author: Michael Quintero, michael.quintero@rackspace.com
 # Description: This script can help automate much of not all of the standard patching process. It features an option set for running interactively, manually, or even just a quick QC check, and generates a log file in the $CHANGE directory. Has logic to determine if the patch and reboot has already occurred and will continue with the reamining portion of the patch process, after reboot. Currently, the version only support Red Hat 7, 8, and 9. Ubuntu patching will be integrated in the future.
 
@@ -382,7 +382,7 @@ EOF
 }
 
 pre_reboot_operations() {
-    found_marker=$(find /root/CHG* -name "script_reboot_marker" -print -quit)
+    found_marker=$(find /root/$CHANGE -name "script_reboot_marker" -print -quit)
 
     if [ -z "$found_marker" ]; then
     echo "Performing pre-reboot operations..."
