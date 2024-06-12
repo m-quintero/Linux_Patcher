@@ -1,18 +1,26 @@
 # Script Name: linux_patcher
 #
-# Version: 2.5
+# Version: 2.5.5
 #
 # Author: michael.quintero@rackspace.com
 #
 # Description: This script can help automate much of not all of the standard patching process. It features an option set for running on full auto, or even just a quick QC check, and generates a log file in the $CHANGE directory. 
 # Has logic to determine if the patch and reboot has already occurred and will continue with the reamining portion of the patch process, after reboot. This version supports Redhat versions 7-9, Amazon Linux, and Debian/Ubuntu.
 #
-# Usage: When running the script, you need to be root. Also, you will ALWAYS need to set the '-c' change switch. 
+# ALWAYS USE THE FULL KERNEL NAME WHEN SPECIFYING A KERNEL TO USE!!!! For example, with RHEL distros, you will set the -k flag with 'kernel-4.18.0-513.24.1.el8_9'. Do not use '4.18.0-513.24.1.el8_9' or nothing will happen!
+#
+# Usage: When running the script, you need to be root. Also, you will ALWAYS need to set the '-c' change switch.
+#
 # By design as a failsafe, the QC function is set to run if you invoke 'linux_patcher -c CHG0123456' with no other switches. I have left the '-q' switch for the user to intentionally invoke though, for increased usability. 
+#
 # To ONLY create the patchme script, run 'bash linux_patcher -c CHG0123456 -k $MY_KERNEL'
+#
 # To ONLY install a specified kernel on the system and not perform any patching, run 'bash linux_patcher -c CHG0123456 -k $MY_KERNEL -a'. 
+#
 # To reboot immediately after the kernel install or patch run, you need to specify such using '-r', like so 'bash linux_patcher -c CHG0123456 -r -k $MY_KERNEL -a' or 'bash linux_patcher -c CHG0123456 -r -a', respectively.
+#
 # The script will NOT reboot on its own!!!!!!!!!!!!!!!!!!!!!! The '-r' flag needs to be set to do so.
+#
 # Lastly, if you want to perform patching of the instance...which for redhat is just the security packages and for Ubuntu is all packages, run 'bash linux_patcher -c CHG0123456 -a'.
 # After performing a manual patch, you can run with the  '-p' switch if you don't reboot, to generate the maintenance report, 'bash linux_patcher -c CHG0123456 -p' or if you do reboot, you can use the '-a' switche, and the script will pick up where it left off.
 
@@ -39,9 +47,9 @@ distro_ball() {
 
 # Primary identification logic for the distros lives here. Tread carefully...the global variable 'package_manager' lives here.
     case $dis_name in
-        rhel|centos|fedora|amzn)
+        rhel|centos|fedora|amzn|ol)
             export package_manager="yum"
-            if [[ "$dis_name" == "amzn" ]]; then
+            if [[ "$dis_name" == "amzn" || "$dis_name" == "ol" ]]; then
                 echo "$(grep "^PRETTY_NAME=" /etc/os-release | cut -d'"' -f2)"
             else
                 echo "Red Hat Version : $(cat /etc/redhat-release)"
@@ -70,7 +78,7 @@ modernize() {
     if [[ -n "$Kernel" ]]; then
         if [[ "$package_manager" == "yum" ]]; then
             echo "Installing specific kernel version $Kernel on RHEL-based distribution."
-            $package_manager install kernel-$Kernel -y
+            $package_manager install $Kernel -y
         elif [[ "$package_manager" == "apt" ]]; then
             echo "Installing specific kernel version $Kernel on Debian-based distribution."
             $package_manager install $Kernel -y
@@ -115,7 +123,7 @@ modernize() {
 # So I opted to call once in the post_reboot_operations
 post_security_op() {
     if [[ "$package_manager" == "yum" ]]; then
-        echo "RUNNING OPERATIONS FOR RED HAT/AMAZON LINUX"
+        echo "RUNNING OPERATIONS FOR RED HAT/AMAZON/ORACLE LINUX"
         $package_manager updateinfo list security installed | grep RHSA > /root/$CHANGE/security_installed.after
     elif [[ "$package_manager" == "apt" ]]; then
         echo "RUNNING OPERATIONS FOR DEBIAN/UBUNTU"
@@ -198,6 +206,7 @@ packages_installed_last_update() {
         echo "===== Maintenance report for $(hostname -s) ====="
         echo "(Current date): $(date)"
         echo "(Server running since): $(uptime -s)"
+        /opt/CrowdStrike/falconctl -g --rfm-state 2>/dev/null | grep -q 'rfm-state=false' && echo "(Is Crowdstrike running): Yes" || echo "(Is Crowdstrike running): No"
         echo "(Packages installed during maintenance): $(count_packages_installed_last_update)"
         echo "(Previous running kernel version): $(cat /root/$CHANGE/kernel.before)"
         echo "(Current running kernel version): $(uname -r)"
@@ -248,7 +257,7 @@ animate_text
             ubuntu|debian)
                 package_manager="apt"
                 ;;
-            rhel|amzn)
+            rhel|amzn|ol) # Added 'ol' for Oracle Linux
                 package_manager="yum"
                 ;;
             *)
@@ -268,7 +277,7 @@ animate_text
     if [ ! -z "$Kernel" ]; then  
         echo "KERNEL VERSION SPECIFIED: $Kernel. GENERATING patchme.sh..."
 
-        if [[ "$ID" == "rhel" || "$ID" == "amzn" ]]; then
+        if [[ "$ID" == "rhel" || "$ID" == "amzn" || "$ID" == "ol" ]]; then
             cat <<EOF > /root/$CHANGE/patchme.sh
 #!/bin/bash
 newkernel="$Kernel"
@@ -314,7 +323,7 @@ check_kernel_updates() {
             updates=$(apt list --upgradable 2>&1 | grep 'linux-image') 
             [[ -z "$updates" ]] && echo "NO KERNEL UPDATES AVAILABLE" || echo "$updates"
             ;;
-        rhel|amzn)
+        rhel|amzn|ol)
             yum list kernel --showduplicates | tail -5
             ;;
         *)
@@ -353,7 +362,7 @@ fi
     echo "CLEARING PACKAGE MANAGER CACHE"
     echo "------------------------------"
     echo "Executing: ${package_manager} clean all"
-    if ! sudo bash -c "${package_manager} clean all"; then
+    if ! bash -c "${package_manager} clean all"; then
         echo -e "\033[31mQC FAILED: ISSUES CLEANING CACHE.\033[0m"
         test_repos_result="FAILED"
         return 1
@@ -389,6 +398,8 @@ fi
         echo "(Current date): $(date)"
         echo "(Server running since): $(uptime)"
         echo "(Current running kernel version): $(uname -r)"
+        /opt/CrowdStrike/falconctl -g --rfm-state 2>/dev/null | grep -q 'rfm-state=false' && echo "(Is Crowdstrike running): Yes" || echo "(Is Crowdstrike running): No"
+        echo "(Current Crowdstrike Version): $(/opt/CrowdStrike/falconctl -g --version 2>/dev/null)"
         echo "(Available Kernel Updates):"
         echo "$(check_kernel_updates)"
         echo "(Test Repositories Result): $test_repos_result"
@@ -422,11 +433,8 @@ pre_reboot_operations() {
         echo "Crowdstrike: $(/opt/CrowdStrike/falconctl -g --version 2>/dev/null)"
         echo "Falcon Kernel Check: $(/opt/CrowdStrike/falcon-kernel-check 2>/dev/null)"
         distro_ball
-        #check_distribution_and_version renamed
-        #check_redhat_version renamed
         before_markers
         modernize
-        #falcon_check refactored and renamed to 'modernize'
 
         if [[ "$reboot_flag" -eq 1 ]]; then
             echo
@@ -535,7 +543,7 @@ while getopts "c:qaphrk:" opt; do
            fi
            exit 0
            ;;
-        h) echo "Usage: $0 [-r Reboot this instance] [-c Change Ticket] [-q QC Only] [-a Automatic Mode] [-p Post Reboot Operations] [-h Help] [-v Version] [-k Kernel Version]"
+        h) echo "Usage: $0 [-r Reboot. Must specify before -a and -k switch ] [-c Change Ticket] [-q QC Only] [-a Automatic Mode. To run security patching] [-p Post Reboot Operations] [-h Help] [-v Version] [-k Kernel Version]"
            exit 0
            ;;
         *) echo "Invalid option: -$OPTARG" >&2
