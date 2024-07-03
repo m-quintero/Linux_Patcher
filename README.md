@@ -4,7 +4,7 @@
 `linux_patcher` is a versatile Bash script designed to automate the patching process for Linux servers. It simplifies routine patching tasks, offering options for quick Quality Control (QC) checks, automatic patching, creating a patchme file, or installing a specific kernel.
 
 ### Version
-2.5.5
+2.5.8-b
 
 ### Features
 - **Versatility:** Automatic patching or QC check modes.
@@ -30,6 +30,7 @@ The script is invoked with various flags for different operations:
 - `-k`: Set kernel to be used to either generate a patchme or for installation of kernel.
 - `-v`: Display version and author information.
 - `-h`: Display usage information.
+- `-s`: Invoke silent mode to redirect all QC standard output and error to /dev/null when enabled.
 
 ### Examples of Usage
 
@@ -153,4 +154,4 @@ Ensure that your AWS credentials are set from Janus!
 Contributions to `DoubleTake` are welcome! Please fork the repo & submit a pull request with your enhancements.
 
 ### Support
-For any queries or issues, contact michael.quintero@rackspace.com.
+For any queries or issues, contact michael.quintero@rackspace.com or pcm.ops@rackspace.com
