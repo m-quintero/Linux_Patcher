@@ -90,68 +90,94 @@ This script is currently in development. Use with caution and always test in a n
 
 ---
 
-## DoubleTake - Automated info retrieval for AWS EC2 Instances with working SSM configs
+## aws_doubletake - Automated info retrieval for AWS EC2 Instances with working SSM configs
 
-`DoubleTake` is a python script which queries AWS EC2 instances via the AWS SSM to provide report info. Primarlily for post patching use, but can be anytime.
+The `aws_doubletake.sh` script is designed to retrieve intelligence from AWS instances using AWS Systems Manager (SSM) in batches mind you, to check system info and gather quality control (QC) reports.
+
+The script takes an input file containing instance IDs or tag names and performs various checks or patches..
 
 ### Version
-1.9
+2.0
 
 ### Features
-- **System Uptime**: Retrieves the uptime of the system.
-- **Kernel Version**: Displays the current kernel version running.
-- **Updates in the Last 7 Days**: Lists any system updates that have been applied within the last week.
-- **CrowdStrike Status**: Checks whether the CrowdStrike Falcon sensor is running & reports its status.
-- **CrowdStrike Version**: Fetches the current version of the installed CrowdStrike Falcon sensor.
-- **Last Five Reboots**: Shows the last five reboots of the system to help identify reboot patterns or issues.
+- **AWS Instance Intelligence Retrieval**: Collects information from AWS instances using SSM.
+  - ***System Uptime***: Retrieves the uptime of the system.
+  - ***Kernel Version***: Displays the current kernel version running.
+  - ***Updates in the Last 7 Days***: Lists any system updates that have been applied within the last week.
+  - ***CrowdStrike Status***: Checks whether the CrowdStrike Falcon sensor is running & reports its status.
+  - ***CrowdStrike Version***: Fetches the current version of the installed CrowdStrike Falcon sensor.
+  - ***Last Five Reboots***: Shows the last five reboots of the system to help identify reboot patterns or issues.
+- **QC Reporting**: Generates & retrieves reports for use in Service Now tasks. Includes Linux patcher embedded within the script, requiring no external internet access.
+- **Multi-Linux Distro Support**: Supports Red Hat, AWS Linux, Oracle Linux, and Ubuntu/Debian distributions.
+- **AWS Region Selection**: Dynamically selects appropriate regions based on the AWS account type (Commercial or Government).
 
+### Installation
+
+To set up `aws_doubletake.sh` on your local machine, follow these instructions:
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/m-quintero/Linux_Patcher.git
+   ```
+
+2. Navigate to the `Linux_Patcher` directory:
+
+   ```bash
+   cd Linux_Patcher
+   ```
 
 ### Usage
-To use `DoubleTake`, follow these steps:
+To use `aws_doubletake.sh`, follow these steps:
 
 1. Ensure you have the necessary AWS credentials configured that allow access to AWS Systems Manager.
-2. Create a file for `doubletake.py` to iterate through, which specifies the EC2 instance IDs.
+2. Create a file for `aws_doubletake.sh` to iterate through, which specifies the EC2 instance IDs.
 3. Run the script from a terminal:
 
    ```bash
-   python3 doubletake.py
+   bash aws_doubletake.sh
    ```
 
 4. Follow the prompts to select the type of Linux distro, AWS account type, and AWS region.
 5. View the output, PROFIT!
 
-### Installation
 
-To set up `DoubleTake` on your local machine, follow these instructions:
+### Example Workflow
+1. **Provide Input**: User will be prompted to input the path to a file containing either AWS instance IDs or tag names.
+2. **Select Instance Type**: Choose between direct instance IDs or tag-based lookups.
+3. **Select Linux Distribution**: Choose the type of Linux distribution running on your instances.
+4. **Select AWS Account Type**: Choose between a Commercial or Government AWS account.
+5. **Choose Region**: Select the region where the instances are located.
+6. **Operation Mode**: 
+   - **Normal Commands**: Run uptime, kernel version, last reboots, and other instance checks.
+   - **QC Report**: Perform QC and apply patches using the embedded Linux patcher script.
 
-1. Clone the repository:
+## Script Flow
+- The script first validates the input and fetches instance IDs based on the provided tag names (if any).
+- It performs a series of checks on each instance to ensure they are in a "running" state before attempting to execute SSM commands.
+- For instances in a valid state, the script will execute either normal checks (e.g., uptime, kernel version) or QC patching operations.
 
-   ```bash
-   git clone https://github.com/yourusername/doubletake.git
-   ```
+## Logging
+- The script generates logs for executed commands, which can be accessed on the instance or viewed during the script's runtime.
 
-2. Navigate to the `doubletake` directory:
+## Example Output
+For an instance ID, the script outputs information like:
+- Instance uptime
+- Last five reboots
+- Kernel version
+- List of updates installed in the last seven days
+- CrowdStrike version and status
 
-   ```bash
-   cd doubletake
-   ```
+### QC Mode Example
+In QC mode, the script generates a comprehensive report that can be included in change management tickets.
 
-3. Install required Python packages:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Requirements
-- Python 3.x
-- Boto3
-- AWS CLI configured with appropriate permissions
-- Access to AWS EC2 and SSM services
-
-Ensure that your AWS credentials are set from Janus!
+## Notes
+- The `LINUX_PATCHER_B64` variable contains the base64 encoded patching script, ensuring the script can run in environments without direct internet access.
+- For best results, ensure the AWS SSM agent is installed and running on the instances to be managed.
+- Ensure that your AWS credentials are set from Janus!
 
 ### Contributing
-Contributions to `DoubleTake` are welcome! Please fork the repo & submit a pull request with your enhancements.
+Contributions to `aws_doubletake.sh` are welcome! Please fork the repo & submit a pull request with your enhancements.
 
 ### Support
 For any queries or issues, contact michael.quintero@rackspace.com or pcm.ops@rackspace.com
