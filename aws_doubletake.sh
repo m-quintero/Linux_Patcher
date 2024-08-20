@@ -1,6 +1,4 @@
-#!/bin/bash
-
-# Name: aws_doubletake.sh v2.1.1
+# Name: aws_doubletake.sh v2.2
 # AUTHOR: michael.quintero@rackspace.com
 # PURPOSE: Intel retrieval from AWS instances with SSM working. Also, for grabbing QC reports.
 # FEATURES: Displays instance hostname, uptime, kernel version, crowdstrike status and version, last 5 reboots, and recent updates. User provides an input file with the instance ids to be used. But wait, there's more! Now with 100% MORE QC REPORT!
@@ -431,7 +429,7 @@ convert_tags_to_ids() {
         exit 1
     fi
 
-	# Working the user's input file & storing the output in a variable
+        # Working the user's input file & storing the output in a variable
     local tagNames
     tagNames=$(tr ',' '\n' < "$file_path")
 
@@ -472,6 +470,7 @@ check_instance_state() {
     fi
 }
 
+# ENHANCEMENT #2 which removed DNF,cleaned up duplicate date info...testing to see how this will impat being sent to ssm, works but could be better
 get_recent_updates_logs() {
     local distro_type=$1
 
@@ -565,7 +564,7 @@ run_linux_patcher() {
             break
         else
             echo "Waiting for QC report... (Attempt $attempt/5)"
-            sleep 10
+            sleep 30
         fi
     done
 
@@ -587,7 +586,7 @@ get_instance_info() {
 
     declare -A commands
     commands=(
-    	["Hostname"]="hostname"
+        ["Hostname"]="hostname"
         ["Uptime"]="uptime"
         ["Last_Five_Reboots"]="last reboot | head -5"
         ["Kernel_Version"]="uname -r"
