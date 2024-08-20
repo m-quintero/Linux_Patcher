@@ -97,13 +97,14 @@ The `aws_doubletake.sh` script is designed to retrieve intelligence from AWS ins
 The script takes an input file containing instance IDs or tag names and performs various checks or patches..
 
 ### Version
-2.0
+2.1.1
 
 ### Features
 - **AWS Instance Intelligence Retrieval**: Collects information from AWS instances using SSM.
+  - ***Hostname***: Retrieves the instance hostname.
   - ***System Uptime***: Retrieves the uptime of the system.
   - ***Kernel Version***: Displays the current kernel version running.
-  - ***Updates in the Last 7 Days***: Lists any system updates that have been applied within the last week.
+  - ***Recent System Updates***: Lists any system updates that have been applied within the last week.
   - ***CrowdStrike Status***: Checks whether the CrowdStrike Falcon sensor is running & reports its status.
   - ***CrowdStrike Version***: Fetches the current version of the installed CrowdStrike Falcon sensor.
   - ***Last Five Reboots***: Shows the last five reboots of the system to help identify reboot patterns or issues.
@@ -162,10 +163,11 @@ To use `aws_doubletake.sh`, follow these steps:
 
 ## Example Output
 For an instance ID, the script outputs information like:
+- Instance Hostname
 - Instance uptime
 - Last five reboots
 - Kernel version
-- List of updates installed in the last seven days
+- List of recent updates (WIP)
 - CrowdStrike version and status
 
 ### QC Mode Example
