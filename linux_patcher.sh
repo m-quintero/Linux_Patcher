@@ -1,29 +1,17 @@
 # Script Name: linux_patcher
-#
 # Version: 2.5.8-b
-#
 # Author: michael.quintero@rackspace.com
-#
-# Description: This script can help automate much of not all of the standard patching process. It features an option set for running on full auto, or even just a quick QC check, and generates a log file in the $CHANGE directory. 
+# Description: This script can help automate much if not all of a patching process. It features an option set for running on full auto, or even just a quick QC check, and generates a log file in the $CHANGE directory. 
 # Has logic to determine if the patch and reboot has already occurred and will continue with the reamining portion of the patch process, after reboot. This version supports Redhat versions 7-9, Amazon Linux, and Debian/Ubuntu.
-#
 # ALWAYS USE THE FULL KERNEL NAME WHEN SPECIFYING A KERNEL TO USE!!!! For example, with RHEL distros, you will set the -k flag with 'kernel-4.18.0-513.24.1.el8_9'. Do not use '4.18.0-513.24.1.el8_9' or nothing will happen!
-#
 # Usage: When running the script, you need to be root. Also, you will ALWAYS need to set the '-c' change switch.
-#
 # By design as a failsafe, the QC function is set to run if you invoke 'linux_patcher -c CHG0123456' with no other switches. I have left the '-q' switch for the user to intentionally invoke though, for increased usability. 
-#
 # To ONLY create the patchme script, run 'bash linux_patcher -c CHG0123456 -k $MY_KERNEL'
-#
 # To ONLY install a specified kernel on the system and not perform any patching, run 'bash linux_patcher -c CHG0123456 -k $MY_KERNEL -a'. 
-#
 # To reboot immediately after the kernel install or patch run, you need to specify such using '-r', like so 'bash linux_patcher -c CHG0123456 -r -k $MY_KERNEL -a' or 'bash linux_patcher -c CHG0123456 -r -a', respectively.
-#
 # The script will NOT reboot on its own!!!!!!!!!!!!!!!!!!!!!! The '-r' flag needs to be set to do so.
-#
 # Lastly, if you want to perform patching of the instance...which for redhat is just the security packages and for Ubuntu is all packages, run 'bash linux_patcher -c CHG0123456 -a'.
 # After performing a manual patch, you can run with the  '-p' switch if you don't reboot, to generate the maintenance report, 'bash linux_patcher -c CHG0123456 -p' or if you do reboot, you can use the '-a' switche, and the script will pick up where it left off.
-
 
 #!/bin/bash
 
