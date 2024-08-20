@@ -97,7 +97,7 @@ The `aws_doubletake.sh` script is designed to retrieve intelligence from AWS ins
 The script takes an input file containing instance IDs or tag names and performs various checks or patches..
 
 ### Version
-2.1.1
+2.2
 
 ### Features
 - **AWS Instance Intelligence Retrieval**: Collects information from AWS instances using SSM.
