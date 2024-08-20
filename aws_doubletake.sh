@@ -470,6 +470,7 @@ check_instance_state() {
         echo "Instance $instance_id is not in a valid state (Current state: $instance_state). Skipping..."
         return 1
     fi
+}
 
 get_recent_updates_logs() {
     local distro_type=$1
