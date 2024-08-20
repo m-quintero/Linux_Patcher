@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Name: aws_doubletake.sh v2
+# Name: aws_doubletake.sh v2.1.1
 # AUTHOR: michael.quintero@rackspace.com
 # PURPOSE: Intel retrieval from AWS instances with SSM working. Also, for grabbing QC reports.
-# FEATURES: Checks uptime, kernel version. User provides an input file with the instance ids to be used. But wait, there's more! Now with 100% MORE QC REPORT! 
+# FEATURES: Displays instance hostname, uptime, kernel version, crowdstrike status and version, last 5 reboots, and recent updates. User provides an input file with the instance ids to be used. But wait, there's more! Now with 100% MORE QC REPORT!
 # Usage: Make sure you have the aws cli installed and are using the proper aws account credentials. run 'bash aws_doubletake.sh' and answer some questions.
 
 verbose=${VERBOSE:-0}
 
 # I've Base64 encoded the Linux_Patcher_v258-b.sh script so that it won't need to be downloaded, to exclude the internet access requirement
-# This was done instead of passing all the logic from the qc function as an SSM command. I could run just a couple of items from the QC function, but the report that is generated makes tickets look nicer. 
+# This was done instead of passing all the logic from the qc function as an SSM command. I could run just a couple of items from the QC function, but the report that is generated makes tickets look nicer.
 LINUX_PATCHER_B64="IyBTY3JpcHQgTmFtZTogbGludXhfcGF0Y2hlcgojCiMgVmVyc2lvbjogMi41LjgtYgojCiMgQXV0
 aG9yOiBtaWNoYWVsLnF1aW50ZXJvQHJhY2tzcGFjZS5jb20KIwojIERlc2NyaXB0aW9uOiBUaGlz
 IHNjcmlwdCBjYW4gaGVscCBhdXRvbWF0ZSBtdWNoIG9mIG5vdCBhbGwgb2YgdGhlIHN0YW5kYXJk
@@ -426,12 +426,13 @@ convert_tags_to_ids() {
     local region="$1"
     local file_path="$2"
 
-    # Working the user's input file & storing the output in a variable
-    local tagNames
     if [ ! -f "$file_path" ]; then
         echo "File not found: $file_path"
         exit 1
     fi
+
+	# Working the user's input file & storing the output in a variable
+    local tagNames
     tagNames=$(tr ',' '\n' < "$file_path")
 
     # Initialize an array to store instance IDs
@@ -440,6 +441,7 @@ convert_tags_to_ids() {
     # Looping through each tag name provided by the user
     for tagName in $tagNames; do
         instanceIds=$(aws ec2 describe-instances --region "$region" --filters "Name=tag:Name,Values=$tagName" --query 'Reservations[*].Instances[*].[InstanceId]' --output text)
+
         if [ -z "$instanceIds" ]; then
             echo "No instances found with tag name: $tagName in region $region"
         else
@@ -468,41 +470,46 @@ check_instance_state() {
         echo "Instance $instance_id is not in a valid state (Current state: $instance_state). Skipping..."
         return 1
     fi
-}
 
-function get_recent_updates_logs {
+get_recent_updates_logs() {
     local distro_type=$1
 
     local end_date=$(date +"%Y-%m-%d")
-    local start_date=$(date -d "-7 days" +"%Y-%m-%d")
+    local start_date=$(date -d "-14 days" +"%Y-%m-%d")
 
     if [[ "$distro_type" -eq 1 ]]; then
-        # Check if dnf is available; if not, fall back to yum
-        if command -v dnf &>/dev/null; then
-            echo "sudo dnf history list | grep 'Upgrade' | awk -v date=\"$start_date\" '\$4 >= date {print \$0}'"
-        else
-            echo "sudo yum history list | grep 'Update' | awk -v date=\"$start_date\" '\$5 >= date {print \$0}'"
-        fi
+        # RHEL and similar distributions
+        echo "sudo yum history list | grep 'update' | awk -v date=\"$start_date\" '\$5 >= date {print \$0}'"
     else
-        echo "sudo awk '\$0 >= \"$start_date\" && \$0 <= \"$end_date\"' /var/log/apt/history.log"
-    fi
+        # Ubuntu/Debian distributions
+       echo "sudo awk '\$0 >= \"$start_date\" && \$0 <= \"$end_date\"' /var/log/apt/history.log"
+   fi
 }
 
+
 # Unpacking Linux Patcher, then running in quiet mode to grab the output for the user to paste in their change notes. I've added a log feature for when this is run, see below.
-function run_linux_patcher {
+run_linux_patcher() {
     local instance_id=$1
     local region=$2
     local change_number=$3
 
-    # Decode base64 payload and run the linux patcher script
-    local decode_command="echo \"$LINUX_PATCHER_B64\" | base64 -d > /tmp/Linux_Patcher_v258-b.sh && chmod +x /tmp/Linux_Patcher_v258-b.sh"
-    local patcher_command="sudo bash /tmp/Linux_Patcher_v258-b.sh -c $change_number -s > /tmp/linux_patcher_output.log 2>&1"
-    local view_log_command="cat /tmp/linux_patcher_output.log"
+    # Path to the Linux Patcher script on the instance
+    local script_path="/root/Linux_Patcher_v258-b.sh"
 
-    local combined_command="$decode_command && $patcher_command && $view_log_command"
+    # Checking if the Linux Patcher script exists (exact version), if not, decode and create it
+    local decode_command="[[ ! -f $script_path ]] && echo \"$LINUX_PATCHER_B64\" | base64 -d > $script_path && chmod +x $script_path"
+    local patcher_command="sudo bash $script_path -c $change_number -s > /tmp/linux_patcher_output.log 2>&1"
 
-    # This was a little dirty. I had to escape the combined commands for JSON to ensure proper quotation as it will hang things up otherwise.
-    escaped_command=$(printf "%s" "$combined_command" | sed 's/"/\\"/g')
+    local combined_command="$decode_command && $patcher_command"
+
+    # This was a little dirty. I had to escape the combined commands for JSON to ensure proper quotation as it will hang things up otherwise
+    local escaped_command=$(printf "%s" "$combined_command" | sed 's/"/\\"/g')
+
+    # Check if instance_id is empty and skip if so
+    if [[ -z "$instance_id" ]]; then
+        echo "Empty instance ID. Skipping..."
+        return
+    fi
 
     # Sending the command(s) using AWS SSM
     command_id=$(aws ssm send-command \
@@ -513,44 +520,65 @@ function run_linux_patcher {
         --query 'Command.CommandId' \
         --output text --region "$region")
 
+    if [[ -z "$command_id" ]]; then
+        echo "Failed to send patching command to instance $instance_id. Skipping..."
+        return 1
+    fi
+
+    # After sending the patching command, fetch the QC report
+    # Wait a little to ensure the patching command has time to run before fetching the report
+    sleep 10  # Adjust this time as needed based on the typical patching duration
+
+    # Attempt to fetch the QC report
+    local qc_report_command="sudo cat /root/$change_number/qc_report.txt"
+    local escaped_qc_command=$(printf '%s' "$qc_report_command" | sed 's/"/\\"/g')
+
+    echo "Attempting to fetch QC report from instance $instance_id..."
+
+    # Send the command to fetch the QC report
+    command_id=$(aws ssm send-command \
+        --instance-ids "$instance_id" \
+        --document-name "AWS-RunShellScript" \
+        --timeout-seconds 600 \
+        --parameters commands="[\"$escaped_qc_command\"]" \
+        --query 'Command.CommandId' \
+        --output text --region "$region")
+
+    if [[ -z "$command_id" ]]; then
+        echo "Failed to send QC report fetch command to instance $instance_id. Skipping..."
+        return 1
+    fi
+
     # Waiting for the command to complete then grabbing output
     for attempt in {1..5}; do
-        output=$(aws ssm get-command-invocation \
+        qc_output=$(aws ssm get-command-invocation \
             --command-id "$command_id" \
             --instance-id "$instance_id" \
             --region "$region" \
             --query 'StandardOutputContent' \
             --output text 2>/dev/null)
 
-        error_output=$(aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$instance_id" \
-            --region "$region" \
-            --query 'StandardErrorContent' \
-            --output text 2>/dev/null)
-
-        if [[ -n "$output" && "$output" != "None" ]]; then
-            echo "$output"
-            break
-        elif [[ -n "$error_output" && "$error_output" != "None" ]]; then
-            echo "Error output: $error_output"
+        if [[ -n "$qc_output" && "$qc_output" != "None" ]]; then
+            echo "QC Report for Instance $instance_id:"
+            echo "$qc_output"
             break
         else
-            if [[ "$verbose" -eq 1 ]]; then
-                echo "Waiting for command invocation to be available... (Attempt $attempt)"
-            fi
-            sleep 5
+            echo "Waiting for QC report... (Attempt $attempt/5)"
+            sleep 10
         fi
     done
 
-    # Added this to check if output was retrieved (STDOUT) if not, you'll get the following warning and there may be something amiss. Don't forget to check the $CHANGE/qc_report.txt file!
-    if [[ -z "$output" || "$output" == "None" ]]; then
-        echo "No output retrieved from instance $instance_id. Please check if the report exists and contains data."
+    # Check if QC report retrieval was successful
+    if [[ -z "$qc_output" || "$qc_output" == "None" ]]; then
+        echo "Failed to retrieve the QC report from instance $instance_id. Skipping..."
+        return 1
     fi
+
+    return 0
 }
 
-#This is for the other option to just run check-up commands. A holdover from previous iterations of doubletake
-function get_instance_info {
+#This is for the other option to just run check-up commands. A holdover from previous iterations of doubletake, there is work to be done on the commands...especially since we can add more into the mix for an overall health snapshot of the instance
+get_instance_info() {
     local region=$1
     local distro_type=$2
     shift 2
@@ -558,12 +586,13 @@ function get_instance_info {
 
     declare -A commands
     commands=(
-        ["Uptime"]="sudo uptime"
-        ["Last_Five_Reboots"]="sudo last reboot | head -5"
-        ["Kernel_Version"]="sudo uname -r"
-        ["Updates_In_Last_7_Days"]="$(get_recent_updates_logs "$distro_type")"
-        ["Crowdstrike_Version"]='sudo echo "(Current Crowdstrike Version): $(/opt/CrowdStrike/falconctl -g --version 2>/dev/null)"'
-        ["Crowdstrike_Status"]='sudo /opt/CrowdStrike/falconctl -g --rfm-state 2>/dev/null | grep -q "rfm-state=false" && echo "(Is Crowdstrike running): Yes" || echo "(Is Crowdstrike running): No"'
+    	["Hostname"]="hostname"
+        ["Uptime"]="uptime"
+        ["Last_Five_Reboots"]="last reboot | head -5"
+        ["Kernel_Version"]="uname -r"
+        ["Recent_System_Updates"]="$(get_recent_updates_logs "$distro_type")"
+        ["Crowdstrike_Version"]='echo "(Current Crowdstrike Version): $(/opt/CrowdStrike/falconctl -g --version 2>/dev/null)"'
+        ["Crowdstrike_Status"]='/opt/CrowdStrike/falconctl -g --rfm-state 2>/dev/null | grep -q "rfm-state=false" && echo "(Is Crowdstrike running): Yes" || echo "(Is Crowdstrike running): No"'
     )
 
     for instance_id in "${instance_ids[@]}"; do
@@ -586,7 +615,7 @@ function get_instance_info {
                 command_id="$output"
 
                 for attempt in {1..5}; do
-                    output=$(aws.ssm get-command-invocation \
+                    output=$(aws ssm get-command-invocation \
                         --command-id "$command_id" \
                         --instance-id "$instance_id" \
                         --region "$region" \
@@ -613,8 +642,8 @@ function get_instance_info {
     done
 }
 
-# Where it all begins. Used main as an ode to python since I wrote this in bash, lol
-function main {
+# Where it all begins. Used main as an ode to python since converting this to bash, lol
+main() {
     while true; do
         read -p "Enter the path to the file with instance IDs or tag names: " file_path
 
