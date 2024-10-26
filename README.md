@@ -97,7 +97,7 @@ The `aws_doubletake.sh` script is designed to retrieve intelligence from AWS ins
 The script takes an input file containing instance IDs or tag names and performs various checks or patches..
 
 ### Version
-2.2
+2.5
 
 ### Features
 - **AWS Instance Intelligence Retrieval**: Collects information from AWS instances using SSM.
@@ -151,7 +151,7 @@ To use `aws_doubletake.sh`, follow these steps:
 5. **Choose Region**: Select the region where the instances are located.
 6. **Operation Mode**: 
    - **Normal Commands**: Run uptime, kernel version, last reboots, and other instance checks.
-   - **QC Report**: Perform QC and apply patches using the embedded Linux patcher script.
+   - **QC Report**: Perform QC and apply patches using the embedded Linux patcher script. Can also specify a kernel to be setup with a patchme file, for use with Qualys.
 
 ## Script Flow
 - The script first validates the input and fetches instance IDs based on the provided tag names (if any).
