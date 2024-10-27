@@ -430,7 +430,7 @@ convert_tags_to_ids() {
         exit 1
     fi
 
-        # Working the user's input file & storing the output in a variable
+    # Working the user's input file & storing the output in a variable
     local tagNames
     tagNames=$(tr ',' '\n' < "$file_path")
 
@@ -486,7 +486,6 @@ get_recent_updates_logs() {
        echo "sudo awk '\$0 >= \"$start_date\" && \$0 <= \"$end_date\"' /var/log/apt/history.log"
    fi
 }
-
 
 # Unpacking Linux Patcher, then running in quiet mode to grab the output for the user to paste in their change notes. I've added a log feature for when this is run, see below.
 run_linux_patcher() {
@@ -575,7 +574,6 @@ run_linux_patcher() {
 
     return 0
 }
-
 
 #This is for the other option to just run check-up commands. A holdover from previous iterations of doubletake, there is work to be done on the commands...especially since we can add more into the mix for an overall health snapshot of the instance
 get_instance_info() {
@@ -720,6 +718,5 @@ main() {
         echo "Invalid option selected."
     fi
 }
-
 
 main
