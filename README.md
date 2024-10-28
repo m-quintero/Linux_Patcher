@@ -171,7 +171,7 @@ For an instance ID, the script outputs information like:
 - CrowdStrike version and status
 
 ### QC Mode Example
-In QC mode, the script generates a comprehensive report that can be included in change management tickets.
+In QC mode, the script generates a comprehensive report that can be included in change management tickets. Can alse set the kernel to be installed in a patchme file.
 
 ## Notes
 - The `LINUX_PATCHER_B64` variable contains the base64 encoded patching script, ensuring the script can run in environments without direct internet access.
