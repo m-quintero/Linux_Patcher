@@ -528,14 +528,14 @@ run_linux_patcher() {
         return 1
     fi
 
-    # Fetch the QC report after patching
-    sleep 10
     # local qc_report_command="cat /root/$change_number/qc_report.txt"
     local qc_report_command="cat /tmp/linux_patcher_output.log"
     local escaped_qc_command=$(printf '%s' "$qc_report_command" | sed 's/"/\\"/g')
 
     echo "Attempting to fetch QC report from instance $instance_id..."
 
+    # Fetch the QC report after patching
+    sleep 5
     command_id=$(aws ssm send-command \
         --instance-ids "$instance_id" \
         --document-name "AWS-RunShellScript" \
